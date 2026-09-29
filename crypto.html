@@ -1,0 +1,1946 @@
+  <!DOCTYPE html>
+  <html lang="en" class="h-full">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+      <title>Crypto Simulator</title>
+
+      <!-- PWA & Mobile Optimization Meta Tags -->
+      <meta name="apple-mobile-web-app-capable" content="yes">
+      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+      <meta name="mobile-web-app-capable" content="yes">
+      <meta name="theme-color" content="#000000">
+
+      <link rel="manifest" href="data:application/manifest+json,{
+          %22name%22:%22Terminal%22,
+          %22short_name%22:%22Terminal%22,
+          %22start_url%22:%22.%22,
+          %22display%22:%22standalone%22,
+          %22background_color%22:%22%23000000%22,
+          %22theme_color%22:%22%23000000%22
+      }">
+
+      <!-- Dependencies -->
+      <script src="https://cdn.tailwindcss.com"></script>
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+      <style>
+          @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+          * {
+              -webkit-tap-highlight-color: transparent;
+              user-select: none;
+          }
+
+          body {
+              font-family: 'Plus Jakarta Sans', sans-serif;
+              background-image: url('https://cdn.phototourl.com/member/2026-09-27-c69c7535-3032-43f1-bfdc-26216aa9b9ce.jpg');
+              background-size: cover;
+              background-position: center;
+              background-attachment: fixed;
+              background-repeat: no-repeat;
+              color: #f1f5f9;
+          }
+
+          .mono {
+              font-family: 'JetBrains Mono', monospace;
+          }
+
+          /* Glassmorphism Styles */
+          .glass-sheet {
+              background: rgba(10, 10, 16, 0.35);
+              backdrop-filter: blur(16px) saturate(190%);
+              -webkit-backdrop-filter: blur(16px) saturate(190%);
+              border: 1px solid rgba(255, 255, 255, 0.12);
+              box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+          }
+
+          .glass-sheet-interactive {
+              background: rgba(15, 15, 22, 0.30);
+              backdrop-filter: blur(14px) saturate(180%);
+              -webkit-backdrop-filter: blur(14px) saturate(180%);
+              border: 1px solid rgba(255, 255, 255, 0.10);
+              transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+
+          .glass-sheet-interactive:hover, .glass-sheet-interactive:focus-within {
+              background: rgba(255, 255, 255, 0.08);
+              border-color: rgba(255, 255, 255, 0.25);
+              box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+              transform: translateY(-1px);
+          }
+
+          .glass-input {
+              background: rgba(0, 0, 0, 0.35);
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              backdrop-filter: blur(8px);
+              color: #ffffff;
+              transition: all 0.2s ease;
+          }
+
+          .glass-input:focus {
+              border-color: rgba(255, 255, 255, 0.45);
+              background: rgba(0, 0, 0, 0.55);
+              outline: none;
+              box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+          }
+
+          .glow-green-btn {
+              box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+          }
+          .glow-red-btn {
+              box-shadow: 0 0 20px rgba(244, 63, 94, 0.35);
+          }
+
+          /* Pulse & Fade Animations */
+          @keyframes pulseGlow {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 0.7; transform: scale(1.03); }
+          }
+
+          .animate-pulse-glow {
+              animation: pulseGlow 3s infinite ease-in-out;
+          }
+
+          ::-webkit-scrollbar {
+              width: 4px;
+              height: 4px;
+          }
+          ::-webkit-scrollbar-track {
+              background: transparent;
+          }
+          ::-webkit-scrollbar-thumb {
+              background: rgba(255, 255, 255, 0.2);
+              border-radius: 9999px;
+          }
+      </style>
+  <base target="_blank">
+  </head>
+  <body class="min-h-full flex flex-col justify-between p-2 sm:p-4 md:p-6 overflow-x-hidden selection:bg-white/20">
+
+      <!-- LOGIN OVERLAY -->
+      <div id="login-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl transition-all duration-500">
+          <div class="glass-sheet rounded-3xl p-6 sm:p-8 w-full max-w-sm space-y-6 text-center border border-white/20 shadow-2xl relative overflow-hidden">
+              <div class="absolute -top-12 -left-12 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl animate-pulse-glow"></div>
+              <div class="absolute -bottom-12 -right-12 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl animate-pulse-glow"></div>
+
+              <div class="relative">
+                  <div class="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-3 text-2xl text-cyan-400">
+                      <i class="fa-solid fa-user-lock"></i>
+                  </div>
+                  <h2 class="text-xl font-extrabold text-white tracking-wide">Terminal Access</h2>
+                  <p class="text-xs text-slate-400 mt-1">Authentication Required</p>
+              </div>
+
+              <form onsubmit="handleLogin(event)" class="space-y-4 text-left relative">
+                  <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Username</label>
+                      <input type="text" id="login-user" required placeholder="Enter username" class="w-full glass-input rounded-2xl px-4 py-2.5 text-sm mono">
+                  </div>
+
+                  <div>
+                      <label class="block text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Passkey</label>
+                      <input type="password" id="login-pass" required placeholder="Enter passkey" class="w-full glass-input rounded-2xl px-4 py-2.5 text-sm mono">
+                  </div>
+
+                  <div id="login-error" class="hidden text-xs text-rose-400 text-center font-semibold bg-rose-500/10 border border-rose-500/20 rounded-xl py-1.5">
+                      Invalid Credentials
+                  </div>
+
+                  <button type="submit" class="w-full py-3 rounded-2xl font-bold uppercase tracking-wider text-xs bg-white text-slate-950 hover:bg-slate-200 transition-all duration-200 shadow-lg">
+                      Unlock Terminal
+                  </button>
+              </form>
+          </div>
+      </div>
+
+      <!-- TOP HEADER -->
+      <header class="w-full glass-sheet rounded-3xl p-3 sm:p-4 mb-3 sm:mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-4 sm:space-x-8">
+              <div>
+                  <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-widest block">USDT Cash</span>
+                  <span id="usdt-balance" class="text-lg sm:text-2xl font-bold mono text-emerald-400">$0.00</span>
+              </div>
+              <div class="h-8 w-[1px] bg-white/10"></div>
+              <div>
+                  <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-widest block">Portfolio</span>
+                  <span id="total-portfolio-value" class="text-lg sm:text-2xl font-bold mono text-white">$0.00</span>
+              </div>
+              <div class="hidden sm:block h-8 w-[1px] bg-white/10"></div>
+              <div class="hidden sm:block">
+                  <span class="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase tracking-widest block">All-Time PnL</span>
+                  <span id="total-pnl" class="text-sm sm:text-base font-bold mono text-slate-400">$0.00 (0.00%)</span>
+              </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+              <button onclick="openBalanceModal()" class="px-3 py-2 rounded-2xl glass-sheet-interactive text-xs font-semibold text-slate-200 hover:text-white flex items-center space-x-1.5" title="Set Starting Capital">
+                  <i class="fa-solid fa-wallet text-emerald-400"></i>
+                  <span class="hidden sm:inline">Set Capital</span>
+              </button>
+              <button onclick="openCustomCoinModal()" class="px-3 py-2 rounded-2xl glass-sheet-interactive text-xs font-semibold text-slate-200 hover:text-white flex items-center space-x-1.5">
+                  <i class="fa-solid fa-plus text-cyan-400"></i>
+                  <span class="hidden sm:inline">Add Token</span>
+              </button>
+              <button onclick="logout()" class="px-3 py-2 rounded-2xl glass-sheet-interactive text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center space-x-1.5" title="Lock Terminal">
+                  <i class="fa-solid fa-lock"></i>
+              </button>
+              <button onclick="resetSimulation()" class="px-3 py-2 rounded-2xl glass-sheet-interactive text-xs font-semibold text-rose-400 hover:text-rose-300 flex items-center space-x-1.5" title="Reset Simulation">
+                  <i class="fa-solid fa-arrow-rotate-right"></i>
+              </button>
+          </div>
+      </header>
+
+      <!-- MAIN DASHBOARD -->
+      <main class="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-grow">
+
+          <!-- MARKETS WATCHLIST (3 Cols) -->
+          <section class="lg:col-span-3 glass-sheet rounded-3xl p-3 sm:p-4 flex flex-col h-[320px] lg:h-auto">
+              <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                  <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Markets</span>
+                  <span class="text-[10px] text-emerald-400 mono animate-pulse">● LIVE TICKER</span>
+              </div>
+              <div id="watchlist" class="flex-grow overflow-y-auto space-y-2 pr-1"></div>
+          </section>
+
+          <!-- CHART & ORDER EXECUTION (6 Cols) -->
+          <section class="lg:col-span-6 flex flex-col space-y-3 sm:space-y-4">
+              
+              <!-- LIVE CHART WITH STRAIGHT LINE DRAWING TOOL -->
+              <div class="glass-sheet rounded-3xl p-4 flex flex-col h-[340px] sm:h-[400px]">
+                  <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div class="flex items-center space-x-3">
+                          <span id="chart-symbol" class="text-xl font-extrabold mono text-white">BTC/USDT</span>
+                          <span id="chart-price" class="text-lg font-bold mono text-emerald-400">$0.00</span>
+                          <span id="chart-change" class="text-xs px-2 py-0.5 rounded-lg font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">+0.00%</span>
+                      </div>
+
+                      <!-- Chart Controls & Trendline Drawing Tool -->
+                      <div class="flex items-center space-x-1.5">
+                          <button id="btn-draw-line" onclick="toggleChartLineDrawing()" class="px-2.5 py-1 text-xs rounded-xl glass-sheet-interactive text-slate-300 hover:text-white flex items-center space-x-1" title="Draw Straight Trendline">
+                              <i class="fa-solid fa-pen-ruler text-cyan-400"></i>
+                              <span class="hidden sm:inline">Trendline</span>
+                          </button>
+                          <button onclick="clearChartLines()" class="px-2 py-1 text-xs rounded-xl glass-sheet-interactive text-rose-400 hover:text-rose-300" title="Clear Lines">
+                              <i class="fa-solid fa-trash-can"></i>
+                          </button>
+                          <div class="h-4 w-[1px] bg-white/20 mx-1"></div>
+                          <div class="flex items-center space-x-1 glass-sheet rounded-xl p-0.5">
+                              <button onclick="setChartType('line')" id="btn-chart-line" class="px-2.5 py-1 text-xs rounded-lg bg-white/15 text-white font-medium">Line</button>
+                              <button onclick="setChartType('bar')" id="btn-chart-bar" class="px-2.5 py-1 text-xs rounded-lg text-slate-400 hover:text-white font-medium">Bars</button>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Canvas Wrapper with Overlay for Straight Lines -->
+                  <div id="chart-container" class="relative flex-grow w-full h-full min-h-0 cursor-crosshair">
+                      <canvas id="cryptoChart" class="w-full h-full"></canvas>
+                      <canvas id="chartOverlay" class="absolute inset-0 w-full h-full pointer-events-auto"></canvas>
+                  </div>
+              </div>
+
+              <!-- ORDER EXECUTION PANEL -->
+              <div class="glass-sheet rounded-3xl p-4 flex-grow">
+                  <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
+                      <div class="flex space-x-4">
+                          <button onclick="setTradeTab('buy')" id="tab-buy" class="text-xs font-bold text-emerald-400 border-b-2 border-emerald-400 pb-1">BUY</button>
+                          <button onclick="setTradeTab('sell')" id="tab-sell" class="text-xs font-bold text-slate-400 hover:text-slate-200 pb-1">SELL</button>
+                          <button onclick="setTradeTab('swap')" id="tab-swap" class="text-xs font-bold text-slate-400 hover:text-slate-200 pb-1">SWAP</button>
+                      </div>
+                      <span id="available-asset-text" class="text-xs text-slate-400 mono">Avail: $0.00 USDT</span>
+                  </div>
+
+                  <!-- Standard Buy/Sell Form -->
+                  <div id="standard-trade-form" class="space-y-3">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Amount (<span class="selected-coin-ticker">BTC</span>)</label>
+                              <input type="number" id="trade-amount" placeholder="0.00" step="any" oninput="calculateTradeTotal()" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono">
+                          </div>
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Total (USDT)</label>
+                              <input type="number" id="trade-total" placeholder="0.00" readonly class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono bg-black/40 text-slate-400">
+                          </div>
+                      </div>
+
+                      <!-- Leverage Selector (1x = spot, >1x = leveraged long/short) -->
+                      <div class="flex items-center space-x-2">
+                          <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Leverage</span>
+                          <button onclick="setLeverage(1)" id="lev-1" class="flex-1 py-1 rounded-xl bg-white/15 text-white text-[11px] mono font-bold">Spot 1x</button>
+                          <button onclick="setLeverage(2)" id="lev-2" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-slate-300 hover:text-white font-bold">2x</button>
+                          <button onclick="setLeverage(5)" id="lev-5" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-amber-300 hover:text-white font-bold">5x</button>
+                          <button onclick="setLeverage(10)" id="lev-10" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-rose-400 hover:text-white font-bold">10x 🔥</button>
+                      </div>
+
+                      <!-- Quick Percentages -->
+                      <div class="flex items-center space-x-2">
+                          <button onclick="setPercentage(0.25)" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-slate-300 hover:text-white">25%</button>
+                          <button onclick="setPercentage(0.50)" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-slate-300 hover:text-white">50%</button>
+                          <button onclick="setPercentage(0.75)" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-slate-300 hover:text-white">75%</button>
+                          <button onclick="setPercentage(1.00)" class="flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono text-slate-300 hover:text-white">100%</button>
+                      </div>
+
+                      <button id="execute-trade-btn" onclick="executeTrade()" class="w-full py-3 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all duration-200 bg-emerald-500 hover:bg-emerald-400 text-slate-950 glow-green-btn">
+                          Buy <span class="selected-coin-ticker">BTC</span>
+                      </button>
+                  </div>
+
+                  <!-- Swap Form -->
+                  <div id="swap-trade-form" class="hidden space-y-3">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">From</label>
+                              <select id="swap-from-coin" onchange="calculateSwapEstimate()" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono"></select>
+                          </div>
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">To</label>
+                              <select id="swap-to-coin" onchange="calculateSwapEstimate()" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono"></select>
+                          </div>
+                      </div>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Swap Amount</label>
+                              <input type="number" id="swap-amount" placeholder="0.00" oninput="calculateSwapEstimate()" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono">
+                          </div>
+                          <div>
+                              <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Estimated Output</label>
+                              <input type="text" id="swap-estimated-receive" placeholder="0.00" readonly class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono bg-black/40 text-slate-400">
+                          </div>
+                      </div>
+                      <button onclick="executeSwap()" class="w-full py-3 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all duration-200 bg-cyan-500 hover:bg-cyan-400 text-slate-950">
+                          Execute Swap
+                      </button>
+                  </div>
+              </div>
+          </section>
+
+          <!-- NOTES & HOLDINGS / BANK ACCOUNT (3 Cols) -->
+          <section class="lg:col-span-3 flex flex-col space-y-3 sm:space-y-4">
+
+              <!-- NOTES PANEL (TEXT + DRAWING TOOL) -->
+              <div class="glass-sheet rounded-3xl p-4 flex flex-col h-64">
+                  <div class="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                      <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center space-x-2">
+                          <i class="fa-solid fa-note-sticky text-amber-400"></i>
+                          <span>Notes</span>
+                      </span>
+                      
+                      <!-- Notes Mode Toggle -->
+                      <div class="flex items-center space-x-1">
+                          <button onclick="setNotesMode('text')" id="btn-note-text" class="px-2 py-0.5 text-[10px] rounded-lg bg-white/20 text-white font-semibold">Text</button>
+                          <button onclick="setNotesMode('draw')" id="btn-note-draw" class="px-2 py-0.5 text-[10px] rounded-lg text-slate-400 hover:text-white font-semibold">Draw</button>
+                          <button onclick="clearNotesDraw()" id="btn-note-clear" class="hidden px-1.5 py-0.5 text-[10px] rounded-lg text-rose-400 hover:text-rose-300" title="Clear Canvas"><i class="fa-solid fa-eraser"></i></button>
+                      </div>
+                  </div>
+
+                  <!-- Text Area Mode -->
+                  <div id="notes-text-container" class="w-full flex-grow">
+                      <textarea id="strategy-board" oninput="saveBoardContent()" placeholder="Write trade setups, targets, or ideas..." class="w-full h-full bg-transparent resize-none border-none focus:outline-none text-xs mono text-slate-200 placeholder:text-slate-600 leading-relaxed"></textarea>
+                  </div>
+
+                  <!-- Freehand Drawing Canvas Mode -->
+                  <div id="notes-draw-container" class="hidden relative w-full flex-grow rounded-2xl overflow-hidden border border-white/10 bg-black/30">
+                      <canvas id="notesCanvas" class="w-full h-full cursor-crosshair"></canvas>
+                  </div>
+              </div>
+
+              <!-- HOLDINGS & FAKE BANK ACCOUNT CARD -->
+              <div class="glass-sheet rounded-3xl p-4 flex-grow flex flex-col h-[300px] lg:h-auto overflow-hidden">
+                  <div class="flex items-center justify-between mb-3 pb-2 border-b border-white/10">
+                      <div class="flex space-x-3">
+                          <button onclick="setRightTab('holdings')" id="tab-holdings" class="text-xs font-bold text-white border-b-2 border-white pb-1">HOLDINGS</button>
+                          <button onclick="setRightTab('bank')" id="tab-bank" class="text-xs font-bold text-slate-400 hover:text-slate-200 pb-1">BANK</button>
+                          <button onclick="setRightTab('history')" id="tab-history" class="text-xs font-bold text-slate-400 hover:text-slate-200 pb-1">HISTORY</button>
+                          <button onclick="setRightTab('positions')" id="tab-positions" class="text-xs font-bold text-slate-400 hover:text-slate-200 pb-1">POSITIONS</button>
+                      </div>
+                  </div>
+
+                  <!-- Holdings List Container -->
+                  <div id="holdings-list" class="flex-grow overflow-y-auto space-y-2 pr-1"></div>
+
+                  <!-- Fake Bank Account / Credit Card Panel -->
+                  <div id="bank-panel" class="hidden flex-grow flex flex-col justify-between p-1 space-y-3">
+                      <div class="p-4 rounded-2xl glass-sheet border border-white/20 relative overflow-hidden bg-gradient-to-br from-slate-900/60 to-black/80">
+                          <div class="flex items-center justify-between mb-4">
+                              <span class="text-xs font-extrabold uppercase tracking-widest text-slate-300">VIRTUAL BANK CARD</span>
+                              <i class="fa-brands fa-cc-mastercard text-2xl text-amber-400"></i>
+                          </div>
+
+                          <!-- Masked Card Number -->
+                          <div class="mb-4">
+                              <span class="text-[9px] uppercase font-bold text-slate-500 block">Card Number</span>
+                              <div onclick="toggleCardDetail('num')" class="text-sm sm:text-base font-bold mono tracking-widest text-white cursor-pointer hover:text-emerald-400 transition-colors py-0.5">
+                                  <span id="card-num-text">4532 •••• •••• 8892</span>
+                                  <i class="fa-solid fa-eye text-[10px] ml-2 text-slate-500"></i>
+                              </div>
+                          </div>
+
+                          <!-- Exp, CVC & Secret PIN -->
+                          <div class="grid grid-cols-3 gap-2 border-t border-white/10 pt-2">
+                              <div>
+                                  <span class="text-[9px] uppercase font-bold text-slate-500 block">Expires</span>
+                                  <span class="text-xs mono font-bold text-slate-200">09/28</span>
+                              </div>
+                              <div>
+                                  <span class="text-[9px] uppercase font-bold text-slate-500 block">CVC</span>
+                                  <div onclick="toggleCardDetail('cvc')" class="text-xs mono font-bold text-slate-200 cursor-pointer hover:text-emerald-400">
+                                      <span id="card-cvc-text">•••</span>
+                                  </div>
+                              </div>
+                              <div>
+                                  <span class="text-[9px] uppercase font-bold text-slate-500 block">Secret PIN</span>
+                                  <div onclick="toggleCardDetail('pin')" class="text-xs mono font-bold text-emerald-400 cursor-pointer hover:underline">
+                                      <span id="card-pin-text">••••</span>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="text-[11px] text-slate-400 p-2.5 rounded-xl glass-sheet border border-white/10 flex items-center justify-between">
+                          <span>Simulated Checking:</span>
+                          <span class="font-bold mono text-emerald-400">$5,000.00</span>
+                      </div>
+                  </div>
+
+                  <!-- History List Container -->
+                  <div id="history-list" class="hidden flex-grow overflow-y-auto space-y-2 pr-1"></div>
+
+                  <!-- Leveraged Positions (Long / Short) -->
+                  <div id="positions-list" class="hidden flex-grow overflow-y-auto space-y-2 pr-1"></div>
+              </div>
+
+          </section>
+
+      </main>
+
+      <!-- STARTING CAPITAL MODAL -->
+      <div id="balance-modal" class="fixed inset-0 bg-black/80 backdrop-blur-lg hidden items-center justify-center p-4 z-50">
+          <div class="glass-sheet rounded-3xl p-6 w-full max-w-sm text-center space-y-4 border border-white/20">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-xl border border-emerald-500/30">
+                  <i class="fa-solid fa-wallet"></i>
+              </div>
+              <div>
+                  <h3 class="text-lg font-bold text-white">Starting Capital</h3>
+                  <p class="text-xs text-slate-400 mt-1">Select starting balance ($100 - $1,000)</p>
+              </div>
+
+              <div class="grid grid-cols-4 gap-2">
+                  <button onclick="setStartingBalancePreset(100)" class="py-2 rounded-xl glass-sheet-interactive text-xs font-bold mono text-emerald-400">$100</button>
+                  <button onclick="setStartingBalancePreset(250)" class="py-2 rounded-xl glass-sheet-interactive text-xs font-bold mono text-emerald-400">$250</button>
+                  <button onclick="setStartingBalancePreset(500)" class="py-2 rounded-xl glass-sheet-interactive text-xs font-bold mono text-emerald-400">$500</button>
+                  <button onclick="setStartingBalancePreset(1000)" class="py-2 rounded-xl glass-sheet-interactive text-xs font-bold mono text-emerald-400">$1,000</button>
+              </div>
+
+              <div>
+                  <input type="number" id="custom-balance-input" min="100" max="1000" placeholder="Custom ($100 - $1,000)" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono text-center">
+              </div>
+
+              <button onclick="saveStartingBalance()" class="w-full py-3 rounded-2xl font-bold bg-white text-slate-950 hover:bg-slate-200 text-xs uppercase tracking-wider">
+                  Apply Capital
+              </button>
+          </div>
+      </div>
+
+      <!-- CUSTOM COIN MODAL -->
+      <div id="custom-coin-modal" class="fixed inset-0 bg-black/80 backdrop-blur-lg hidden items-center justify-center p-4 z-50">
+          <div class="glass-sheet rounded-3xl p-6 w-full max-w-sm space-y-3 border border-white/20">
+              <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                  <h3 class="text-sm font-bold text-white uppercase tracking-wider">Add Custom Token</h3>
+                  <button onclick="closeCustomCoinModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+              <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Ticker Symbol (e.g., SUI)</label>
+                  <input type="text" id="modal-coin-symbol" placeholder="TICKER" class="w-full glass-input rounded-2xl px-3 py-2 text-sm uppercase mono">
+              </div>
+              <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Full Name</label>
+                  <input type="text" id="modal-coin-name" placeholder="Token Name" class="w-full glass-input rounded-2xl px-3 py-2 text-sm">
+              </div>
+              <div>
+                  <label class="block text-[10px] text-slate-400 mb-1">Initial Price ($)</label>
+                  <input type="number" id="modal-coin-price" placeholder="1.00" step="any" class="w-full glass-input rounded-2xl px-3 py-2 text-sm mono">
+              </div>
+              <button onclick="submitCustomCoin()" class="w-full py-2.5 rounded-2xl font-bold bg-white text-slate-950 hover:bg-slate-200 text-xs uppercase tracking-wider">Add Token</button>
+          </div>
+      </div>
+
+      <script>
+          // Web Audio Synthesizer for Audio Feedback
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+          function playBingSound() {
+              try {
+                  if (audioCtx.state === 'suspended') audioCtx.resume();
+                  const osc = audioCtx.createOscillator();
+                  const gain = audioCtx.createGain();
+                  osc.type = 'sine';
+                  osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                  osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.15);
+                  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                  osc.connect(gain);
+                  gain.connect(audioCtx.destination);
+                  osc.start();
+                  osc.stop(audioCtx.currentTime + 0.3);
+              } catch(e){}
+          }
+
+          function playPopSound() {
+              try {
+                  if (audioCtx.state === 'suspended') audioCtx.resume();
+                  const osc = audioCtx.createOscillator();
+                  const gain = audioCtx.createGain();
+                  osc.type = 'sine';
+                  osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+                  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.08);
+                  gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+                  osc.connect(gain);
+                  gain.connect(audioCtx.destination);
+                  osc.start();
+                  osc.stop(audioCtx.currentTime + 0.08);
+              } catch(e){}
+          }
+
+          // Authentication State
+          const AUTH_USER = "nemanja";
+          const AUTH_PASS = "Nemanja12345";
+
+          function checkAuth() {
+              const loggedIn = localStorage.getItem('sim_logged_in') === 'true';
+              const overlay = document.getElementById('login-overlay');
+              if (loggedIn) {
+                  overlay.classList.add('hidden');
+              } else {
+                  overlay.classList.remove('hidden');
+              }
+          }
+
+          function handleLogin(e) {
+              e.preventDefault();
+              const u = document.getElementById('login-user').value.trim();
+              const p = document.getElementById('login-pass').value.trim();
+              const err = document.getElementById('login-error');
+
+              if (u === AUTH_USER && p === AUTH_PASS) {
+                  localStorage.setItem('sim_logged_in', 'true');
+                  err.classList.add('hidden');
+                  playPopSound();
+                  checkAuth();
+              } else {
+                  err.classList.remove('hidden');
+              }
+          }
+
+          function logout() {
+              localStorage.setItem('sim_logged_in', 'false');
+              checkAuth();
+          }
+
+          const DEFAULT_COINS = {
+              'BTC': { name: 'Bitcoin', price: 64250.00, history: [], change: 1.85, isMeme: false },
+              'ETH': { name: 'Ethereum', price: 3480.50, history: [], change: -0.42, isMeme: false },
+              'SOL': { name: 'Solana', price: 145.20, history: [], change: 4.12, isMeme: false },
+              'DOGE': { name: 'Dogecoin', price: 0.124, history: [], change: 12.30, isMeme: true },
+              'PEPE': { name: 'Pepe', price: 0.0000085, history: [], change: -3.45, isMeme: true },
+              'LTC': { name: 'Litecoin', price: 74.80, history: [], change: 0.85, isMeme: false },
+              'XRP': { name: 'XRP', price: 0.585, history: [], change: 2.10, isMeme: false },
+              'ADA': { name: 'Cardano', price: 0.38, history: [], change: -1.15, isMeme: false },
+              'SHIB': { name: 'Shiba Inu', price: 0.0000178, history: [], change: 8.40, isMeme: true }
+          };
+
+          let coins = JSON.parse(localStorage.getItem('sim_coins')) || DEFAULT_COINS;
+          let startingCapital = parseFloat(localStorage.getItem('sim_start_cap')) || 500.00;
+          let usdtBalance = parseFloat(localStorage.getItem('sim_usdt'));
+          if (isNaN(usdtBalance)) usdtBalance = startingCapital;
+
+          let holdings = JSON.parse(localStorage.getItem('sim_holdings')) || {};
+          let tradeHistory = JSON.parse(localStorage.getItem('sim_history')) || [];
+
+          let selectedCoin = 'BTC';
+          let tradeMode = 'buy';
+          let currentLeverage = 1;
+          let positions = JSON.parse(localStorage.getItem('sim_positions')) || [];
+          let musicPlaying = false;
+          let localAudio = null;
+          let localAudioReady = false;
+          let localAudioAttempted = false;
+          let rightPanelTab = 'holdings';
+          let chartType = 'line';
+          let chartInstance = null;
+
+          // Chart Drawing Tool State
+          let isDrawingChartLine = false;
+          let chartLineModeActive = false;
+          let chartLineStart = null;
+          let chartLines = JSON.parse(localStorage.getItem('sim_chart_lines')) || [];
+
+          // Card Details Visibility
+          let cardNumRevealed = false;
+          let cardCvcRevealed = false;
+          let cardPinRevealed = false;
+
+          // Notes Drawing Canvas State
+          let notesDrawing = false;
+          let notesCtx = null;
+
+          // Window Load Setup
+          window.onload = function() {
+              checkAuth();
+              initChart();
+              initChartDrawingOverlay();
+              initNotesCanvas();
+              renderWatchlist();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              loadBoardContent();
+              renderPositions();
+              selectCoin('BTC');
+
+              // Simulation timer (managed so keyboard can change speed)
+              window.simTickMs = 2500;
+              window._simIntervalId = null;
+              startSimTick();
+          };
+
+          function startSimTick() {
+              stopSimTick();
+              window._simIntervalId = setInterval(simulateMarketTick, window.simTickMs);
+          }
+
+          function stopSimTick() {
+              if (window._simIntervalId) { clearInterval(window._simIntervalId); window._simIntervalId = null; }
+          }
+
+          function generateInitialHistory(basePrice) {
+              const history = [];
+              let current = basePrice * 0.94;
+              for (let i = 0; i < 20; i++) {
+                  const fluctuation = (Math.random() - 0.5) * 0.03;
+                  current = current * (1 + fluctuation);
+                  history.push(current);
+              }
+              history.push(basePrice);
+              return history;
+          }
+
+          function simulateMarketTick() {
+              if (window.simPaused) return; // allow pausing the simulation via hotkey
+              let triggeredBing = false;
+
+              Object.keys(coins).forEach(symbol => {
+                  const coin = coins[symbol];
+                  const baseVol = coin.isMeme ? 0.018 : 0.006;
+                  const volatility = (baseVol * (window.volatilityMultiplier || 1));
+                  // FAIR random walk: true 50/50 drift, no built-in upward bias
+                  const changePercent = (Math.random() - 0.5) * volatility;
+
+                  if (Math.abs(changePercent) > 0.008 && !triggeredBing) {
+                      playBingSound();
+                      triggeredBing = true;
+                  }
+
+                  coin.price = Math.max(0.00000001, coin.price * (1 + changePercent));
+                  coin.change += changePercent * 100;
+                  coin.history.push(coin.price);
+                  if (coin.history.length > 25) coin.history.shift();
+
+                  // Track short-window momentum for pop-off detection
+                  coin.recentPrices = coin.recentPrices || [];
+                  coin.recentPrices.push(coin.price);
+                  if (coin.recentPrices.length > 10) coin.recentPrices.shift();
+                  checkForPopOff(symbol, coin);
+              });
+
+              saveState();
+              renderWatchlist();
+              updateHeaderStats();
+              renderHoldings();
+              updatePositions();
+
+              // RARE MARKET EVENTS (~every couple of minutes)
+              if (Math.random() < 0.015) runMarketEvent();
+
+              if (chartInstance) {
+                  chartInstance.data.labels = coins[selectedCoin].history.map((_, i) => i.toString());
+                  chartInstance.data.datasets[0].data = coins[selectedCoin].history;
+                  chartInstance.update('none');
+
+                  document.getElementById('chart-price').innerText = formatCurrency(coins[selectedCoin].price);
+                  const changeEl = document.getElementById('chart-change');
+                  const chg = coins[selectedCoin].change;
+
+              // ---- process price alerts & limit orders ----
+              processPriceAlerts();
+              processLimitOrders();
+
+              // ---- Auto-DCA runs handled separately by timers ----
+                  changeEl.innerText = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+                  changeEl.className = `text-xs px-2 py-0.5 rounded-lg font-mono ${chg >= 0 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}`;
+              }
+
+              // ---- process stop-loss / take-profit orders ----
+              processSLTPs();
+
+              // ---- Auto-DCA runs handled separately by timers ----
+          }
+
+          // ---- POP-OFF NOTIFICATION SYSTEM ----
+          const popNotified = {}; // symbol -> timestamp of last alert (cooldown)
+
+          function checkForPopOff(symbol, coin) {
+              if (!coin.recentPrices || coin.recentPrices.length < 6) return;
+
+              const windowStart = coin.recentPrices[0];
+              const windowChange = ((coin.price - windowStart) / windowStart) * 100;
+
+              const threshold = coin.isMeme ? 4.0 : 1.8; // meme coins need bigger moves
+              const cooldownMs = 30000; // don't spam the same coin
+              const now = Date.now();
+
+              if (Math.abs(windowChange) >= threshold) {
+                  const lastAlert = popNotified[symbol] || 0;
+                  if (now - lastAlert < cooldownMs) return;
+
+                  popNotified[symbol] = now;
+                  notifyPop(symbol, windowChange, windowChange > 0);
+              }
+          }
+
+          function notifyPop(symbol, changePct, isUp) {
+              const toast = document.createElement('div');
+              toast.className = "fixed left-5 glass-sheet border text-white px-4 py-2.5 rounded-2xl text-xs font-semibold z-50 animate-bounce flex items-center space-x-2 " + (isUp ? "border-emerald-400/40" : "border-rose-400/40");
+              toast.style.top = '80px';
+              toast.style.bottom = 'auto';
+              toast.innerHTML = `<i class="fa-solid ${isUp ? 'fa-rocket text-emerald-400' : 'fa-arrow-trend-down text-rose-400'}"></i>
+                  <span><span class="mono font-bold">${symbol}</span> is ${isUp ? 'popping off' : 'dumping'}: ${isUp ? '+' : ''}${changePct.toFixed(2)}% in the last few ticks!</span>`;
+              document.body.appendChild(toast);
+              playBingSound();
+              setTimeout(() => {
+                  toast.style.transition = 'opacity 0.4s';
+                  toast.style.opacity = '0';
+                  setTimeout(() => toast.remove(), 400);
+              }, 4000);
+          }
+
+          // ================= COOL SHIT SYSTEMS =================
+
+          // ---- LEVERAGE ----
+          function setLeverage(lev) {
+              currentLeverage = lev;
+              [1, 2, 5, 10].forEach(l => {
+                  const btn = document.getElementById('lev-' + l);
+                  if (!btn) return;
+                  btn.className = (l === lev)
+                      ? "flex-1 py-1 rounded-xl bg-white/15 text-white text-[11px] mono font-bold"
+                      : `flex-1 py-1 rounded-xl glass-sheet-interactive text-[11px] mono ${l === 5 ? 'text-amber-300' : (l === 10 ? 'text-rose-400' : 'text-slate-300')} hover:text-white font-bold`;
+              });
+              updateExecuteButtonText();
+              updateAvailableText();
+          }
+
+          function updateExecuteButtonText() {
+              const execBtn = document.getElementById('execute-trade-btn');
+              if (!execBtn || tradeMode === 'swap') return;
+              const action = tradeMode === 'buy' ? 'Buy' : 'Sell';
+              const lev = currentLeverage > 1 ? ` ${currentLeverage}x ${tradeMode === 'buy' ? 'LONG' : 'SHORT'}` : '';
+              execBtn.innerText = `${action}${lev} ${selectedCoin}`;
+          }
+
+          function getPositionPnL(p) {
+              const cur = coins[p.symbol] ? coins[p.symbol].price : p.entry;
+              const dir = p.side === 'long' ? 1 : -1;
+              return (cur - p.entry) * p.amount * dir;
+          }
+
+          function openLeveragedTrade(amount, price) {
+              const side = tradeMode === 'buy' ? 'long' : 'short';
+              const margin = (amount * price) / currentLeverage;
+              if (margin > usdtBalance) {
+                  showToast("Insufficient USDT for margin!");
+                  return;
+              }
+              usdtBalance -= margin;
+              const liqPrice = side === 'long'
+                  ? price * (1 - 0.95 / currentLeverage)
+                  : price * (1 + 0.95 / currentLeverage);
+
+              positions.push({
+                  id: 'pos' + Date.now() + Math.floor(Math.random() * 9999),
+                  symbol: selectedCoin, side: side, amount: amount,
+                  entry: price, leverage: currentLeverage, margin: margin, liqPrice: liqPrice
+              });
+
+              logHistory(side === 'long' ? 'LONG' : 'SHORT', `${selectedCoin} ${currentLeverage}x`, amount, price);
+              playPopSound();
+              if (currentLeverage >= 5) showToast(`⚡ ${currentLeverage}x ${side.toUpperCase()} opened on ${selectedCoin}!`);
+
+              document.getElementById('trade-amount').value = '';
+              document.getElementById('trade-total').value = '';
+              saveState();
+              updateHeaderStats();
+              renderPositions();
+              updateAvailableText();
+          }
+
+          function closePosition(id) {
+              const idx = positions.findIndex(p => p.id === id);
+              if (idx === -1) return;
+              const p = positions[idx];
+              const pnl = getPositionPnL(p);
+              usdtBalance += p.margin + pnl;
+              positions.splice(idx, 1);
+
+              if (pnl > 0) {
+                  launchConfetti();
+                  playBingSound();
+                  showToast(`💰 Closed ${p.symbol} ${p.side.toUpperCase()} ${p.leverage}x for +${formatCurrency(pnl)}!`);
+              } else {
+                  playPopSound();
+                  showToast(`Closed ${p.symbol} position: ${formatCurrency(pnl)}`);
+              }
+              logHistory('CLOSE', `${p.symbol} ${p.leverage}x`, p.amount, coins[p.symbol].price);
+              saveState();
+              updateHeaderStats();
+              renderPositions();
+              updateAvailableText();
+          }
+
+          function updatePositions() {
+              if (positions.length > 0) {
+                  positions = positions.filter(p => {
+                      const cur = coins[p.symbol].price;
+                      const pnl = getPositionPnL(p);
+                      const liq = p.side === 'long' ? cur <= p.liqPrice : cur >= p.liqPrice;
+                      if (liq || pnl <= -p.margin * 0.95) {
+                          showToast(`💥 LIQUIDATED: ${p.symbol} ${p.side.toUpperCase()} ${p.leverage}x — margin lost!`);
+                          logHistory('LIQUIDATION', `${p.symbol} ${p.leverage}x`, p.amount, cur);
+                          playPopSound();
+                          return false;
+                      }
+                      return true;
+                  });
+              }
+              updateHeaderStats();
+              if (rightPanelTab === 'positions') renderPositions();
+          }
+
+          function renderPositions() {
+              const container = document.getElementById('positions-list');
+              if (!container) return;
+              container.innerHTML = '';
+
+              if (positions.length === 0) {
+                  container.innerHTML = '<div class="text-xs text-slate-500 text-center py-6 mono">No leveraged positions<br><span class="text-[10px]">Pick 2x-10x leverage and YOLO</span></div>';
+                  return;
+              }
+
+              positions.forEach(p => {
+                  const pnl = getPositionPnL(p);
+                  const pnlPct = (pnl / p.margin) * 100;
+                  const isUp = pnl >= 0;
+                  const cur = coins[p.symbol].price;
+                  const liqDistance = Math.abs((cur - p.liqPrice) / cur * 100);
+
+                  const item = document.createElement('div');
+                  item.className = "p-2.5 rounded-2xl glass-sheet space-y-1.5";
+                  item.innerHTML = `
+                      <div class="flex items-center justify-between">
+                          <div class="flex items-center space-x-1.5">
+                              <span class="text-xs font-bold text-white mono">${p.symbol}</span>
+                              <span class="text-[9px] px-1.5 py-0.5 rounded-md font-bold ${p.side === 'long' ? 'bg-emerald-500/25 text-emerald-300' : 'bg-rose-500/25 text-rose-300'}">${p.side.toUpperCase()} ${p.leverage}x</span>
+                          </div>
+                          <span class="text-xs font-bold mono ${isUp ? 'text-emerald-400' : 'text-rose-400'}">${isUp ? '+' : ''}${formatCurrency(pnl)} (${isUp ? '+' : ''}${pnlPct.toFixed(1)}%)</span>
+                      </div>
+                      <div class="flex items-center justify-between">
+                          <div class="text-[9px] mono text-slate-400">Entry ${formatCurrency(p.entry)} → ${formatCurrency(cur)}</div>
+                          <div class="text-[9px] mono ${liqDistance < 3 ? 'text-rose-400 animate-pulse font-bold' : 'text-slate-500'}">Liq ${formatCurrency(p.liqPrice)}</div>
+                      </div>
+                      <div class="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                          <div class="h-full ${isUp ? 'bg-emerald-500' : 'bg-rose-500'}" style="width:${Math.min(100, Math.max(0, 50 + (pnlPct / (p.leverage * 0.95)) * 50))}%"></div>
+                      </div>
+                      <button onclick="closePosition('${p.id}')" class="w-full py-1 rounded-lg glass-sheet-interactive text-[10px] font-bold text-slate-200 hover:text-white">CLOSE POSITION</button>`;
+                  container.appendChild(item);
+              });
+          }
+
+          // ---- RANDOM MARKET EVENTS ----
+          const MARKET_EVENTS = [
+              { icon: '🚀', title: 'FLASH PUMP', good: true,  mult: [1.06, 1.18], msgs: ['{s} IS MOONING!', 'Elon just tweeted about {s}!', '{s} listed on a major exchange!'] },
+              { icon: '📉', title: 'FLASH CRASH', good: false, mult: [0.84, 0.95], msgs: ['Whale just dumped {s}!', 'FUD spreading about {s}!', 'Exchange outage hits {s}!'] },
+              { icon: '🐋', title: 'WHALE ALERT', good: true,  mult: [1.03, 1.08], msgs: ['Mystery whale accumulating {s}...', '{s} moving to cold storage!'] },
+              { icon: '🗞️', title: 'BREAKING NEWS', good: false, mult: [0.93, 0.99], msgs: ['Regulators eyeing {s}...', '{s} dev team scandal?!'] }
+          ];
+
+          function runMarketEvent() {
+              const symbols = Object.keys(coins);
+              const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+              const coin = coins[symbol];
+              const ev = MARKET_EVENTS[Math.floor(Math.random() * MARKET_EVENTS.length)];
+              const shock = ev.mult[0] + Math.random() * (ev.mult[1] - ev.mult[0]);
+
+              coin.price = Math.max(0.00000001, coin.price * shock);
+              coin.change += (shock - 1) * 100;
+              coin.history.push(coin.price);
+              if (coin.history.length > 25) coin.history.shift();
+              coin.recentPrices = coin.recentPrices || [];
+              coin.recentPrices.push(coin.price);
+              if (coin.recentPrices.length > 10) coin.recentPrices.shift();
+
+              const msg = ev.msgs[Math.floor(Math.random() * ev.msgs.length)].replace('{s}', symbol);
+              showEventBanner(ev.icon, ev.title, msg, ev.good);
+              playBingSound();
+          }
+
+          // ---- PROGRAMMATIC TRADING HELPERS (no UI change) ----
+          function programmaticBuyUSD(symbol, usdAmount) {
+              const price = coins[symbol].price;
+              const amount = usdAmount / price;
+              if (usdAmount > usdtBalance) {
+                  showToast('Auto-trade: insufficient USDT');
+                  return false;
+              }
+              usdtBalance -= usdAmount;
+              holdings[symbol] = (holdings[symbol] || 0) + amount;
+              logHistory('AUTO-BUY', symbol, amount, price);
+              playPopSound();
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              return true;
+          }
+
+          function programmaticSellAmount(symbol, amount) {
+              const owned = holdings[symbol] || 0;
+              if (amount > owned) amount = owned;
+              if (amount <= 0) return false;
+              const price = coins[symbol].price;
+              const total = amount * price;
+              holdings[symbol] = (holdings[symbol] || 0) - amount;
+              if (holdings[symbol] <= 0.0000001) delete holdings[symbol];
+              usdtBalance += total;
+              logHistory('AUTO-SELL', symbol, amount, price);
+              playBingSound();
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              return true;
+          }
+
+          // ---- Stop-Loss / Take-Profit Manager ----
+          function loadSLTPs() {
+              return JSON.parse(localStorage.getItem('sim_sltp') || '[]');
+          }
+
+          function saveSLTPs(list) {
+              localStorage.setItem('sim_sltp', JSON.stringify(list));
+          }
+
+          function addSLTP(symbol, stopPrice, takePrice, amount) {
+              const list = loadSLTPs();
+              list.push({ id: 'sltp' + Date.now() + Math.floor(Math.random()*9999), symbol, stopPrice, takePrice, amount });
+              saveSLTPs(list);
+              showToast(`SL/TP added for ${symbol}`);
+          }
+
+          function removeSLTP(id) {
+              let list = loadSLTPs();
+              list = list.filter(s => s.id !== id);
+              saveSLTPs(list);
+              showToast('SL/TP removed');
+          }
+
+          function processSLTPs() {
+              const list = loadSLTPs();
+              if (!list.length) return;
+              let changed = false;
+              for (const s of list.slice()) {
+                  const price = coins[s.symbol] ? coins[s.symbol].price : null;
+                  if (!price) continue;
+                  // if price hits stop (<=) or take (>=), execute sell of specified amount
+                  if ((s.stopPrice && price <= s.stopPrice) || (s.takePrice && price >= s.takePrice)) {
+                      const amt = s.amount || (holdings[s.symbol] || 0);
+                      if (amt > 0) {
+                          programmaticSellAmount(s.symbol, amt);
+                          showToast(`SL/TP triggered for ${s.symbol}`);
+                      }
+                      // remove triggered order
+                      removeSLTP(s.id);
+                      changed = true;
+                  }
+              }
+              if (changed) saveState();
+          }
+
+          // ---- Price Alerts & Limit Orders ----
+          function loadPriceAlerts() { return JSON.parse(localStorage.getItem('sim_price_alerts') || '[]'); }
+          function savePriceAlerts(list) { localStorage.setItem('sim_price_alerts', JSON.stringify(list)); }
+
+          function addPriceAlert(symbol, targetPrice, direction) {
+              const list = loadPriceAlerts();
+              list.push({ id: 'alert' + Date.now() + Math.floor(Math.random()*9999), symbol, targetPrice, direction });
+              savePriceAlerts(list);
+              showToast('Price alert added');
+          }
+
+          function processPriceAlerts() {
+              const list = loadPriceAlerts();
+              for (const a of list.slice()) {
+                  const price = coins[a.symbol] ? coins[a.symbol].price : null;
+                  if (!price) continue;
+                  if ((a.direction === 'above' && price >= a.targetPrice) || (a.direction === 'below' && price <= a.targetPrice)) {
+                      showToast(`${a.symbol} hit ${a.targetPrice}`);
+                      playBingSound();
+                      // remove
+                      const rem = loadPriceAlerts().filter(x => x.id !== a.id);
+                      savePriceAlerts(rem);
+                  }
+              }
+          }
+
+          // Limit orders: stores as buy orders at target price
+          function loadLimitOrders() { return JSON.parse(localStorage.getItem('sim_limit_orders') || '[]'); }
+          function saveLimitOrders(list) { localStorage.setItem('sim_limit_orders', JSON.stringify(list)); }
+
+          function addLimitBuy(symbol, targetPrice, usdAmount) {
+              const list = loadLimitOrders();
+              list.push({ id: 'lmt' + Date.now() + Math.floor(Math.random()*9999), symbol, targetPrice, usdAmount });
+              saveLimitOrders(list);
+              showToast('Limit buy added');
+          }
+
+          function processLimitOrders() {
+              const list = loadLimitOrders();
+              for (const o of list.slice()) {
+                  const price = coins[o.symbol] ? coins[o.symbol].price : null;
+                  if (!price) continue;
+                  // if current price <= targetPrice, execute buy
+                  if (price <= o.targetPrice && (usdtBalance || 0) >= o.usdAmount) {
+                      programmaticBuyUSD(o.symbol, o.usdAmount);
+                      // remove order
+                      const rem = loadLimitOrders().filter(x => x.id !== o.id);
+                      saveLimitOrders(rem);
+                      showToast(`Limit buy executed for ${o.symbol}`);
+                  }
+              }
+          }
+
+          // ---- Airdrop (fun feature): grant random token occasionally via hotkey ----
+          function doAirdrop() {
+              const syms = Object.keys(coins);
+              const symbol = syms[Math.floor(Math.random()*syms.length)];
+              const amount = (Math.random() * 0.5).toFixed(6);
+              holdings[symbol] = (holdings[symbol] || 0) + parseFloat(amount);
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              showToast(`Airdrop: ${amount} ${symbol}`);
+              playPopSound();
+          }
+
+          // ---- Simulation controls via functions ----
+          function setSimSpeed(ms) { window.simTickMs = ms; startSimTick(); showToast('Simulation speed set'); }
+          function setVolatilityMultiplier(m) { window.volatilityMultiplier = m; showToast(`Volatility x${m}`); }
+
+          // ---- Auto DCA (Dollar-Cost Averaging) ----
+          const AUTO_DCA_KEY = 'sim_auto_dca';
+          function loadAutoDCA() { return JSON.parse(localStorage.getItem(AUTO_DCA_KEY) || 'null'); }
+          function saveAutoDCA(obj) { localStorage.setItem(AUTO_DCA_KEY, JSON.stringify(obj)); }
+
+          function startAutoDCA(symbol, usdAmount, intervalSec) {
+              stopAutoDCA();
+              const cfg = { symbol, usdAmount, intervalSec, timer: null };
+              cfg.timer = setInterval(() => {
+                  if ((usdtBalance || 0) >= usdAmount) {
+                      const ok = programmaticBuyUSD(symbol, usdAmount);
+                      if (!ok) stopAutoDCA();
+                  } else {
+                      showToast('Auto-DCA stopped: insufficient USDT');
+                      stopAutoDCA();
+                  }
+              }, Math.max(5, intervalSec) * 1000);
+              saveAutoDCA({ symbol, usdAmount, intervalSec });
+              window._autoDcaTimer = cfg.timer;
+              showToast(`Auto-DCA started: ${symbol} $${usdAmount} every ${intervalSec}s`);
+          }
+
+          function stopAutoDCA() {
+              if (window._autoDcaTimer) { clearInterval(window._autoDcaTimer); window._autoDcaTimer = null; }
+              localStorage.removeItem(AUTO_DCA_KEY);
+              showToast('Auto-DCA stopped');
+          }
+
+          // ---- Simulation pause toggle and keyboard shortcuts ----
+          window.simPaused = false;
+          document.addEventListener('keydown', (e) => {
+              // Ctrl+Shift+D toggles Auto-DCA for selected coin (default $1 every 60s)
+              if (e.ctrlKey && e.shiftKey && e.code === 'KeyD') {
+                  const curr = loadAutoDCA();
+                  if (curr) { stopAutoDCA(); } else { startAutoDCA(selectedCoin, 1.0, 60); }
+                  e.preventDefault();
+              }
+              // P toggles simulation pause
+              if (e.code === 'KeyP') {
+                  window.simPaused = !window.simPaused;
+                  showToast(window.simPaused ? 'Simulation paused' : 'Simulation resumed');
+              }
+              // M mutes/unmutes local audio
+              if (e.code === 'KeyM') {
+                  if (localAudio) {
+                      localAudio.muted = !localAudio.muted;
+                      showToast(localAudio.muted ? 'Audio muted' : 'Audio unmuted');
+                  }
+              }
+          });
+
+          // ---- Achievements: profit streak tracker ----
+          function loadProfitStreak() { return parseInt(localStorage.getItem('sim_profit_streak') || '0'); }
+          function saveProfitStreak(n) { localStorage.setItem('sim_profit_streak', String(n)); }
+
+          function onTradeProfit(amount) {
+              let s = loadProfitStreak();
+              s += 1;
+              saveProfitStreak(s);
+              if (s === 3) showToast('🔥 Profit streak: 3 trades!');
+              if (s === 5) showToast('💎 Profit streak: 5 trades — legendary');
+          }
+
+          function onTradeLoss() {
+              saveProfitStreak(0);
+          }
+
+          function showEventBanner(icon, title, msg, isGood) {
+              const b = document.createElement('div');
+              b.className = `fixed top-16 left-1/2 -translate-x-1/2 z-50 glass-sheet border ${isGood ? 'border-emerald-400/50' : 'border-rose-400/50'} rounded-2xl px-5 py-3 flex items-center space-x-3 animate-pulse-glow`;
+              b.innerHTML = `<span class="text-2xl">${icon}</span>
+                  <div>
+                      <div class="text-[10px] font-extrabold uppercase tracking-widest ${isGood ? 'text-emerald-400' : 'text-rose-400'}">${title}</div>
+                      <div class="text-sm font-bold text-white">${msg}</div>
+                  </div>`;
+              document.body.appendChild(b);
+              setTimeout(() => {
+                  b.style.transition = 'all 0.5s';
+                  b.style.opacity = '0';
+                  b.style.transform = 'translate(-50%, -20px)';
+                  setTimeout(() => b.remove(), 500);
+              }, 6000);
+          }
+
+          // ---- CONFETTI ----
+          function launchConfetti() {
+              const colors = ['#10b981', '#22d3ee', '#fbbf24', '#f472b6', '#a78bfa', '#ffffff'];
+              for (let i = 0; i < 60; i++) {
+                  const c = document.createElement('div');
+                  const size = 5 + Math.random() * 6;
+                  c.style.cssText = `position:fixed;left:50%;top:40%;width:${size}px;height:${size}px;z-index:60;pointer-events:none;border-radius:${Math.random() > 0.5 ? '50%' : '2px'};background:${colors[i % colors.length]}`;
+                  document.body.appendChild(c);
+                  const angle = Math.random() * Math.PI * 2;
+                  const velocity = 4 + Math.random() * 8;
+                  let vx = Math.cos(angle) * velocity;
+                  let vy = Math.sin(angle) * velocity - 5;
+                  let x = 0, y = 0;
+                  const anim = setInterval(() => {
+                      vy += 0.35;
+                      x += vx;
+                      y += vy;
+                      c.style.transform = `translate(${x}px,${y}px) rotate(${x * 3}deg)`;
+                      c.style.opacity = Math.max(0, 1 - Math.abs(y) / 260);
+                      if (y > 320) { clearInterval(anim); c.remove(); }
+                  }, 16);
+              }
+          }
+
+          // ---- BACKGROUND MUSIC (local only) ----
+          function toggleMusic() {
+              const btn = document.getElementById('music-toggle');
+              if (!localAudioReady && !localAudioAttempted) {
+                  initLocalAudio();
+                  showToast('Loading local audio...');
+                  setTimeout(() => toggleMusic(), 700);
+                  return;
+              }
+
+              if (!localAudio) {
+                  showToast('Local audio not found (place larppr.mp3 next to crypto.html)');
+                  return;
+              }
+
+              if (musicPlaying) {
+                  localAudio.pause();
+                  musicPlaying = false;
+                  btn.classList.remove('animate-pulse-glow', 'border-cyan-400/60');
+              } else {
+                  localAudio.play().then(() => {
+                      musicPlaying = true;
+                      btn.classList.add('animate-pulse-glow', 'border-cyan-400/60');
+                      showToast('🎧 Local audio playing');
+                  }).catch(err => {
+                      console.error('Local audio play failed', err);
+                      showToast('Local audio blocked (user gesture required)');
+                  });
+              }
+          }
+
+          // Initialize local audio (larppr.mp3) on demand
+          function initLocalAudio() {
+              if (localAudioAttempted) return;
+              localAudioAttempted = true;
+              try {
+                  localAudio = new Audio('larppr.mp3');
+                  localAudio.loop = true;
+                  localAudio.volume = 0.35;
+                  localAudio.preload = 'auto';
+                  localAudio.addEventListener('canplaythrough', () => {
+                      localAudioReady = true;
+                      console.debug('Local audio ready');
+                      showToast('Local audio loaded');
+                  });
+                  localAudio.addEventListener('error', (e) => {
+                      console.error('Local audio load error', e);
+                      localAudio = null;
+                      showToast('Local audio failed to load');
+                  });
+                  localAudio.load();
+              } catch (e) {
+                  console.error('initLocalAudio error', e);
+                  localAudio = null;
+              }
+          }
+
+          function renderWatchlist() {
+              const container = document.getElementById('watchlist');
+              container.innerHTML = '';
+
+              Object.keys(coins).forEach(symbol => {
+                  const coin = coins[symbol];
+                  const isSelected = symbol === selectedCoin;
+                  const isPositive = coin.change >= 0;
+
+                  const card = document.createElement('div');
+                  card.onclick = () => selectCoin(symbol);
+                  card.className = `p-2.5 rounded-2xl cursor-pointer glass-sheet-interactive flex items-center justify-between ${isSelected ? 'border-l-4 border-l-cyan-400 bg-white/10' : ''}`;
+
+                  card.innerHTML = `
+                      <div class="flex items-center space-x-2.5">
+                          <div class="w-7 h-7 rounded-full bg-white/10 border border-white/10 flex items-center justify-center font-bold text-[10px] text-slate-200">
+                              ${symbol.substring(0, 3)}
+                          </div>
+                          <div>
+                              <div class="flex items-center space-x-1">
+                                  <span class="text-xs font-bold text-white mono">${symbol}</span>
+                                  ${coin.isMeme ? '<span class="text-[8px] px-1 bg-purple-500/30 text-purple-200 rounded border border-purple-500/40">MEME</span>' : ''}
+                              </div>
+                              <span class="text-[10px] text-slate-400 block">${coin.name}</span>
+                          </div>
+                      </div>
+                      <div class="text-right">
+                          <div class="text-xs font-bold mono text-slate-100">${formatCurrency(coin.price)}</div>
+                          <div class="text-[10px] mono ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
+                              ${isPositive ? '+' : ''}${coin.change.toFixed(2)}%
+                          </div>
+                      </div>
+                  `;
+                  container.appendChild(card);
+              });
+          }
+
+          function selectCoin(symbol) {
+              selectedCoin = symbol;
+              const coin = coins[symbol];
+
+              document.getElementById('chart-symbol').innerText = `${symbol}/USDT`;
+              document.getElementById('chart-price').innerText = formatCurrency(coin.price);
+              document.querySelectorAll('.selected-coin-ticker').forEach(el => el.innerText = symbol);
+
+              renderWatchlist();
+              updateChartData();
+              updateAvailableText();
+              calculateTradeTotal();
+              updateExecuteButtonText();
+          }
+
+          function initChart() {
+              const ctx = document.getElementById('cryptoChart').getContext('2d');
+              chartInstance = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                      labels: coins[selectedCoin].history.map((_, i) => i.toString()),
+                      datasets: [{
+                          data: coins[selectedCoin].history,
+                          borderColor: '#10b981',
+                          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                          borderWidth: 2,
+                          fill: true,
+                          tension: 0.3,
+                          pointRadius: 0
+                      }]
+                  },
+                  options: {
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: { legend: { display: false } },
+                      scales: {
+                          x: { display: false },
+                          y: {
+                              grid: { color: 'rgba(255, 255, 255, 0.06)' },
+                              ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                          }
+                      }
+                  }
+              });
+          }
+
+          function updateChartData() {
+              if (!chartInstance) return;
+              const history = coins[selectedCoin].history;
+              const isPositive = coins[selectedCoin].change >= 0;
+              const color = isPositive ? '#10b981' : '#f43f5e';
+
+              chartInstance.config.type = chartType === 'bar' ? 'bar' : 'line';
+              chartInstance.data.labels = history.map((_, i) => i.toString());
+              chartInstance.data.datasets[0].data = history;
+              chartInstance.data.datasets[0].borderColor = color;
+              chartInstance.data.datasets[0].backgroundColor = isPositive ? 'rgba(16, 185, 129, 0.08)' : 'rgba(244, 63, 94, 0.08)';
+              chartInstance.update();
+          }
+
+          function setChartType(type) {
+              chartType = type;
+              document.getElementById('btn-chart-line').className = `px-2.5 py-1 text-xs rounded-lg ${type === 'line' ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-white'} font-medium`;
+              document.getElementById('btn-chart-bar').className = `px-2.5 py-1 text-xs rounded-lg ${type === 'bar' ? 'bg-white/15 text-white' : 'text-slate-400 hover:text-white'} font-medium`;
+              updateChartData();
+          }
+
+          function initChartDrawingOverlay() {
+              const overlay = document.getElementById('chartOverlay');
+              const container = document.getElementById('chart-container');
+
+              function resizeOverlay() {
+                  overlay.width = container.clientWidth;
+                  overlay.height = container.clientHeight;
+                  redrawChartLines();
+              }
+
+              window.addEventListener('resize', resizeOverlay);
+              setTimeout(resizeOverlay, 200);
+
+              const getPos = (e) => {
+                  const rect = overlay.getBoundingClientRect();
+                  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                  return { x: clientX - rect.left, y: clientY - rect.top };
+              };
+
+              const startDraw = (e) => {
+                  if (!chartLineModeActive) return;
+                  isDrawingChartLine = true;
+                  chartLineStart = getPos(e);
+              };
+
+              const moveDraw = (e) => {
+                  if (!isDrawingChartLine || !chartLineStart) return;
+                  const current = getPos(e);
+                  redrawChartLines();
+                  const ctx = overlay.getContext('2d');
+                  ctx.beginPath();
+                  ctx.strokeStyle = '#22d3ee';
+                  ctx.lineWidth = 2;
+                  ctx.setLineDash([4, 4]);
+                  ctx.moveTo(chartLineStart.x, chartLineStart.y);
+                  ctx.lineTo(current.x, current.y);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+              };
+
+              const endDraw = (e) => {
+                  if (!isDrawingChartLine || !chartLineStart) return;
+                  isDrawingChartLine = false;
+                  if (!e) return;
+                  const current = getPos(e.changedTouches ? e.changedTouches[0] : e);
+                  chartLines.push({ x1: chartLineStart.x, y1: chartLineStart.y, x2: current.x, y2: current.y });
+                  chartLineStart = null;
+                  localStorage.setItem('sim_chart_lines', JSON.stringify(chartLines));
+                  redrawChartLines();
+                  playPopSound();
+              };
+
+              overlay.addEventListener('mousedown', startDraw);
+              overlay.addEventListener('mousemove', moveDraw);
+              overlay.addEventListener('mouseup', endDraw);
+
+              overlay.addEventListener('touchstart', startDraw);
+              overlay.addEventListener('touchmove', moveDraw);
+              overlay.addEventListener('touchend', endDraw);
+          }
+
+          function toggleChartLineDrawing() {
+              chartLineModeActive = !chartLineModeActive;
+              const btn = document.getElementById('btn-draw-line');
+              if (chartLineModeActive) {
+                  btn.className = "px-2.5 py-1 text-xs rounded-xl bg-cyan-500 text-slate-950 font-bold flex items-center space-x-1";
+              } else {
+                  btn.className = "px-2.5 py-1 text-xs rounded-xl glass-sheet-interactive text-slate-300 hover:text-white flex items-center space-x-1";
+              }
+          }
+
+          function redrawChartLines() {
+              const overlay = document.getElementById('chartOverlay');
+              if (!overlay) return;
+              const ctx = overlay.getContext('2d');
+              ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+              ctx.strokeStyle = '#22d3ee';
+              ctx.lineWidth = 2;
+              chartLines.forEach(line => {
+                  ctx.beginPath();
+                  ctx.moveTo(line.x1, line.y1);
+                  ctx.lineTo(line.x2, line.y2);
+                  ctx.stroke();
+              });
+          }
+
+          function clearChartLines() {
+              chartLines = [];
+              localStorage.removeItem('sim_chart_lines');
+              redrawChartLines();
+              playPopSound();
+          }
+
+          function setNotesMode(mode) {
+              const btnText = document.getElementById('btn-note-text');
+              const btnDraw = document.getElementById('btn-note-draw');
+              const btnClear = document.getElementById('btn-note-clear');
+
+              const textCont = document.getElementById('notes-text-container');
+              const drawCont = document.getElementById('notes-draw-container');
+
+              if (mode === 'text') {
+                  btnText.className = "px-2 py-0.5 text-[10px] rounded-lg bg-white/20 text-white font-semibold";
+                  btnDraw.className = "px-2 py-0.5 text-[10px] rounded-lg text-slate-400 hover:text-white font-semibold";
+                  btnClear.classList.add('hidden');
+                  textCont.classList.remove('hidden');
+                  drawCont.classList.add('hidden');
+              } else {
+                  btnDraw.className = "px-2 py-0.5 text-[10px] rounded-lg bg-white/20 text-white font-semibold";
+                  btnText.className = "px-2 py-0.5 text-[10px] rounded-lg text-slate-400 hover:text-white font-semibold";
+                  btnClear.classList.remove('hidden');
+                  textCont.classList.add('hidden');
+                  drawCont.classList.remove('hidden');
+                  initNotesCanvas();
+              }
+          }
+
+          function initNotesCanvas() {
+              const canvas = document.getElementById('notesCanvas');
+              if (!canvas) return;
+              const container = canvas.parentElement;
+
+              canvas.width = container.clientWidth;
+              canvas.height = container.clientHeight;
+
+              notesCtx = canvas.getContext('2d');
+              notesCtx.strokeStyle = '#fbbf24';
+              notesCtx.lineWidth = 2;
+              notesCtx.lineCap = 'round';
+
+              // Load saved drawing
+              const savedDraw = localStorage.getItem('sim_notes_draw');
+              if (savedDraw) {
+                  const img = new Image();
+                  img.onload = () => notesCtx.drawImage(img, 0, 0);
+                  img.src = savedDraw;
+              }
+
+              const getPos = (e) => {
+                  const rect = canvas.getBoundingClientRect();
+                  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                  return { x: clientX - rect.left, y: clientY - rect.top };
+              };
+
+              const start = (e) => {
+                  notesDrawing = true;
+                  const p = getPos(e);
+                  notesCtx.beginPath();
+                  notesCtx.moveTo(p.x, p.y);
+              };
+
+              const move = (e) => {
+                  if (!notesDrawing) return;
+                  const p = getPos(e);
+                  notesCtx.lineTo(p.x, p.y);
+                  notesCtx.stroke();
+              };
+
+              const stop = () => {
+                  if (notesDrawing) {
+                      notesDrawing = false;
+                      localStorage.setItem('sim_notes_draw', canvas.toDataURL());
+                  }
+              };
+
+              canvas.onmousedown = start;
+              canvas.onmousemove = move;
+              canvas.onmouseup = stop;
+
+              canvas.ontouchstart = start;
+              canvas.ontouchmove = move;
+              canvas.ontouchend = stop;
+          }
+
+          function clearNotesDraw() {
+              const canvas = document.getElementById('notesCanvas');
+              if (notesCtx && canvas) {
+                  notesCtx.clearRect(0, 0, canvas.width, canvas.height);
+                  localStorage.removeItem('sim_notes_draw');
+                  playPopSound();
+              }
+          }
+
+          function saveBoardContent() {
+              const content = document.getElementById('strategy-board').value;
+              localStorage.setItem('sim_board_content', content);
+              const status = document.getElementById('board-save-status');
+              if(status) {
+                  status.innerText = "Saving...";
+                  setTimeout(() => status.innerText = "Saved", 400);
+              }
+          }
+
+          function loadBoardContent() {
+              const content = localStorage.getItem('sim_board_content');
+              if (content !== null) {
+                  document.getElementById('strategy-board').value = content;
+              } else {
+                  document.getElementById('strategy-board').value = "• Target SOL entry @ $140\n• DOGE breakout watch\n• Stop-loss BTC @ $61,000";
+              }
+          }
+
+          function toggleCardDetail(type) {
+              playPopSound();
+              if (type === 'num') {
+                  cardNumRevealed = !cardNumRevealed;
+                  document.getElementById('card-num-text').innerText = cardNumRevealed ? "4532 9102 7741 8892" : "4532 •••• •••• 8892";
+              } else if (type === 'cvc') {
+                  cardCvcRevealed = !cardCvcRevealed;
+                  document.getElementById('card-cvc-text').innerText = cardCvcRevealed ? "742" : "•••";
+              } else if (type === 'pin') {
+                  cardPinRevealed = !cardPinRevealed;
+                  document.getElementById('card-pin-text').innerText = cardPinRevealed ? "8492" : "••••";
+              }
+          }
+
+          function setTradeTab(tab) {
+              tradeMode = tab;
+              const buyBtn = document.getElementById('tab-buy');
+              const sellBtn = document.getElementById('tab-sell');
+              const swapBtn = document.getElementById('tab-swap');
+              const stdForm = document.getElementById('standard-trade-form');
+              const swapForm = document.getElementById('swap-trade-form');
+              const execBtn = document.getElementById('execute-trade-btn');
+
+              buyBtn.className = `text-xs font-bold ${tab === 'buy' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+              sellBtn.className = `text-xs font-bold ${tab === 'sell' ? 'text-rose-400 border-b-2 border-rose-400' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+              swapBtn.className = `text-xs font-bold ${tab === 'swap' ? 'text-cyan-400 border-b-2 border-cyan-400' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+
+              if (tab === 'swap') {
+                  stdForm.classList.add('hidden');
+                  swapForm.classList.remove('hidden');
+                  populateSwapDropdowns();
+              } else {
+                  swapForm.classList.add('hidden');
+                  stdForm.classList.remove('hidden');
+
+                  if (tab === 'buy') {
+                      execBtn.className = "w-full py-3 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all duration-200 bg-emerald-500 hover:bg-emerald-400 text-slate-950 glow-green-btn";
+                      updateExecuteButtonText();
+                  } else {
+                      execBtn.className = "w-full py-3 rounded-2xl font-bold uppercase tracking-wider text-xs transition-all duration-200 bg-rose-500 hover:bg-rose-400 text-slate-950 glow-red-btn";
+                      updateExecuteButtonText();
+                  }
+              }
+              updateAvailableText();
+          }
+
+          function calculateTradeTotal() {
+              const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
+              const price = coins[selectedCoin].price;
+              document.getElementById('trade-total').value = (amount * price).toFixed(2);
+          }
+
+          function setPercentage(pct) {
+              if (tradeMode === 'buy') {
+                  const availableUsdt = usdtBalance * pct;
+                  const amount = availableUsdt / coins[selectedCoin].price;
+                  document.getElementById('trade-amount').value = amount.toFixed(6);
+              } else if (tradeMode === 'sell') {
+                  if (currentLeverage > 1) {
+                      const amount = (usdtBalance * pct * currentLeverage) / coins[selectedCoin].price;
+                      document.getElementById('trade-amount').value = amount.toFixed(6);
+                  } else {
+                      const owned = holdings[selectedCoin] || 0;
+                      document.getElementById('trade-amount').value = (owned * pct).toFixed(6);
+                  }
+              }
+              calculateTradeTotal();
+          }
+
+          function executeTrade() {
+              const amount = parseFloat(document.getElementById('trade-amount').value);
+              if (!amount || amount <= 0) return;
+
+              const price = coins[selectedCoin].price;
+              const total = amount * price;
+
+              if (currentLeverage > 1) { openLeveragedTrade(amount, price); return; }
+
+              if (tradeMode === 'buy') {
+                  if (total > usdtBalance) {
+                      showToast("Insufficient USDT balance!");
+                      return;
+                  }
+                  usdtBalance -= total;
+                  holdings[selectedCoin] = (holdings[selectedCoin] || 0) + amount;
+                  logHistory('BUY', selectedCoin, amount, price);
+                  playPopSound();
+              } else if (tradeMode === 'sell') {
+                  const owned = holdings[selectedCoin] || 0;
+                  if (amount > owned) {
+                      showToast(`Insufficient ${selectedCoin} balance!`);
+                      return;
+                  }
+                  holdings[selectedCoin] -= amount;
+                  if (holdings[selectedCoin] <= 0.0000001) delete holdings[selectedCoin];
+                  usdtBalance += total;
+                  logHistory('SELL', selectedCoin, amount, price);
+                  playPopSound();
+              }
+
+              document.getElementById('trade-amount').value = '';
+              document.getElementById('trade-total').value = '';
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              updateAvailableText();
+          }
+
+          function populateSwapDropdowns() {
+              const fromSelect = document.getElementById('swap-from-coin');
+              const toSelect = document.getElementById('swap-to-coin');
+              fromSelect.innerHTML = '';
+              toSelect.innerHTML = '';
+
+              Object.keys(coins).forEach(symbol => {
+                  fromSelect.innerHTML += `<option value="${symbol}">${symbol}</option>`;
+                  toSelect.innerHTML += `<option value="${symbol}">${symbol}</option>`;
+              });
+
+              toSelect.selectedIndex = 1;
+              calculateSwapEstimate();
+          }
+
+          function calculateSwapEstimate() {
+              const fromSymbol = document.getElementById('swap-from-coin').value;
+              const toSymbol = document.getElementById('swap-to-coin').value;
+              const amount = parseFloat(document.getElementById('swap-amount').value) || 0;
+
+              if (fromSymbol === toSymbol) {
+                  document.getElementById('swap-estimated-receive').value = 'Select different tokens';
+                  return;
+              }
+
+              const fromPrice = coins[fromSymbol].price;
+              const toPrice = coins[toSymbol].price;
+              const estimated = (amount * fromPrice) / toPrice;
+
+              document.getElementById('swap-estimated-receive').value = `${estimated.toFixed(6)} ${toSymbol}`;
+          }
+
+          function executeSwap() {
+              const fromSymbol = document.getElementById('swap-from-coin').value;
+              const toSymbol = document.getElementById('swap-to-coin').value;
+              const amount = parseFloat(document.getElementById('swap-amount').value);
+
+              if (!amount || amount <= 0 || fromSymbol === toSymbol) return;
+
+              const owned = holdings[fromSymbol] || 0;
+              if (amount > owned) {
+                  showToast(`Insufficient ${fromSymbol} balance!`);
+                  return;
+              }
+
+              const fromPrice = coins[fromSymbol].price;
+              const toPrice = coins[toSymbol].price;
+              const receivedAmount = (amount * fromPrice) / toPrice;
+
+              holdings[fromSymbol] -= amount;
+              if (holdings[fromSymbol] <= 0.0000001) delete holdings[fromSymbol];
+              holdings[toSymbol] = (holdings[toSymbol] || 0) + receivedAmount;
+
+              logHistory('SWAP', `${fromSymbol}->${toSymbol}`, amount, fromPrice);
+              playPopSound();
+
+              document.getElementById('swap-amount').value = '';
+              document.getElementById('swap-estimated-receive').value = '';
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+          }
+
+          function updateHeaderStats() {
+              document.getElementById('usdt-balance').innerText = formatCurrency(usdtBalance);
+
+              let holdingsValue = 0;
+              Object.keys(holdings).forEach(symbol => {
+                  if (coins[symbol]) {
+                      holdingsValue += holdings[symbol] * coins[symbol].price;
+                  }
+              });
+
+              let positionsValue = 0;
+              positions.forEach(p => { positionsValue += p.margin + getPositionPnL(p); });
+
+              const totalPortfolio = usdtBalance + holdingsValue + Math.max(0, positionsValue);
+              document.getElementById('total-portfolio-value').innerText = formatCurrency(totalPortfolio);
+
+              const pnl = totalPortfolio - startingCapital;
+              const pnlPercent = (pnl / startingCapital) * 100;
+              const pnlEl = document.getElementById('total-pnl');
+
+              pnlEl.innerText = `${pnl >= 0 ? '+' : ''}${formatCurrency(pnl)} (${pnlPercent.toFixed(2)}%)`;
+              pnlEl.className = `text-sm sm:text-base font-bold mono ${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+          }
+
+          function updateAvailableText() {
+              const textEl = document.getElementById('available-asset-text');
+              if (tradeMode === 'buy') {
+                  textEl.innerText = `Avail: ${formatCurrency(usdtBalance)} USDT`;
+              } else if (tradeMode === 'sell') {
+                  if (currentLeverage > 1) {
+                      textEl.innerText = `Avail: ${formatCurrency(usdtBalance)} USDT (margin)`;
+                  } else {
+                      const owned = holdings[selectedCoin] || 0;
+                      textEl.innerText = `Avail: ${owned.toFixed(6)} ${selectedCoin}`;
+                  }
+              } else {
+                  textEl.innerText = `USDT: ${formatCurrency(usdtBalance)}`;
+              }
+          }
+
+          function renderHoldings() {
+              const container = document.getElementById('holdings-list');
+              container.innerHTML = '';
+
+              const keys = Object.keys(holdings);
+              if (keys.length === 0) {
+                  container.innerHTML = '<div class="text-xs text-slate-500 text-center py-6 mono">No open positions</div>';
+                  return;
+              }
+
+              keys.forEach(symbol => {
+                  const amount = holdings[symbol];
+                  if (amount <= 0) return;
+                  const coin = coins[symbol] || { price: 0 };
+                  const value = amount * coin.price;
+
+                  const item = document.createElement('div');
+                  item.className = "p-2.5 rounded-2xl glass-sheet flex items-center justify-between";
+                  item.innerHTML = `
+                      <div>
+                          <div class="text-xs font-bold text-white mono">${symbol}</div>
+                          <div class="text-[10px] text-slate-400 mono">${amount.toFixed(4)}</div>
+                      </div>
+                      <div class="text-right">
+                          <div class="text-xs font-bold text-slate-200 mono">${formatCurrency(value)}</div>
+                          <div class="text-[10px] text-slate-400 mono">@ ${formatCurrency(coin.price)}</div>
+                      </div>
+                  `;
+                  container.appendChild(item);
+              });
+          }
+
+          function logHistory(type, symbol, amount, price) {
+              tradeHistory.unshift({
+                  type,
+                  symbol,
+                  amount,
+                  price,
+                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              });
+              if (tradeHistory.length > 25) tradeHistory.pop();
+          }
+
+          function renderHistory() {
+              const container = document.getElementById('history-list');
+              container.innerHTML = '';
+
+              if (tradeHistory.length === 0) {
+                  container.innerHTML = '<div class="text-xs text-slate-500 text-center py-6 mono">No history</div>';
+                  return;
+              }
+
+              tradeHistory.forEach(item => {
+                  const isBuy = item.type === 'BUY';
+                  const el = document.createElement('div');
+                  el.className = "p-2 rounded-2xl glass-sheet flex items-center justify-between text-xs";
+                  el.innerHTML = `
+                      <div class="flex items-center space-x-2">
+                          <span class="font-bold mono ${isBuy ? 'text-emerald-400' : 'text-rose-400'}">${item.type}</span>
+                          <span class="text-slate-300 font-medium">${item.symbol}</span>
+                      </div>
+                      <div class="text-right mono">
+                          <div class="text-slate-200">${formatCurrency(item.amount * item.price)}</div>
+                          <div class="text-[10px] text-slate-500">${item.time}</div>
+                      </div>
+                  `;
+                  container.appendChild(el);
+              });
+          }
+
+          function setRightTab(tab) {
+              rightPanelTab = tab;
+              document.getElementById('tab-holdings').className = `text-xs font-bold ${tab === 'holdings' ? 'text-white border-b-2 border-white' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+              document.getElementById('tab-bank').className = `text-xs font-bold ${tab === 'bank' ? 'text-white border-b-2 border-white' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+              document.getElementById('tab-history').className = `text-xs font-bold ${tab === 'history' ? 'text-white border-b-2 border-white' : 'text-slate-400 hover:text-slate-200'} pb-1`;
+
+              document.getElementById('holdings-list').classList.add('hidden');
+              document.getElementById('bank-panel').classList.add('hidden');
+              document.getElementById('history-list').classList.add('hidden');
+              document.getElementById('positions-list').classList.add('hidden');
+
+              if (tab === 'holdings') document.getElementById('holdings-list').classList.remove('hidden');
+              if (tab === 'bank') document.getElementById('bank-panel').classList.remove('hidden');
+              if (tab === 'history') document.getElementById('history-list').classList.remove('hidden');
+              if (tab === 'positions') document.getElementById('positions-list').classList.remove('hidden');
+              if (tab === 'positions') renderPositions();
+          }
+
+          // Capital Modal Controls
+          function openBalanceModal() {
+              document.getElementById('balance-modal').classList.remove('hidden');
+              document.getElementById('balance-modal').classList.add('flex');
+          }
+
+          function closeBalanceModal() {
+              document.getElementById('balance-modal').classList.add('hidden');
+              document.getElementById('balance-modal').classList.remove('flex');
+          }
+
+          function setStartingBalancePreset(amount) {
+              document.getElementById('custom-balance-input').value = amount;
+          }
+
+          function saveStartingBalance() {
+              const val = parseFloat(document.getElementById('custom-balance-input').value) || 500;
+              const boundedVal = Math.min(Math.max(val, 100), 1000);
+
+              startingCapital = boundedVal;
+              usdtBalance = boundedVal;
+              holdings = {};
+              tradeHistory = [];
+
+              localStorage.setItem('sim_start_cap', boundedVal.toString());
+              saveState();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              closeBalanceModal();
+              playPopSound();
+              showToast(`Capital reset to $${boundedVal}`);
+          }
+
+          // Custom Coin Modal
+          function openCustomCoinModal() {
+              document.getElementById('custom-coin-modal').classList.remove('hidden');
+              document.getElementById('custom-coin-modal').classList.add('flex');
+          }
+
+          function closeCustomCoinModal() {
+              document.getElementById('custom-coin-modal').classList.add('hidden');
+              document.getElementById('custom-coin-modal').classList.remove('flex');
+          }
+
+          function submitCustomCoin() {
+              const symbol = document.getElementById('modal-coin-symbol').value.toUpperCase().trim();
+              const name = document.getElementById('modal-coin-name').value.trim() || symbol;
+              const price = parseFloat(document.getElementById('modal-coin-price').value) || 1.0;
+
+              if (!symbol) return;
+
+              coins[symbol] = {
+                  name: name,
+                  price: price,
+                  history: generateInitialHistory(price),
+                  change: 0.0,
+                  isMeme: true
+              };
+
+              saveState();
+              renderWatchlist();
+              closeCustomCoinModal();
+              selectCoin(symbol);
+              playPopSound();
+          }
+
+          function saveState() {
+              localStorage.setItem('sim_coins', JSON.stringify(coins));
+              localStorage.setItem('sim_usdt', usdtBalance.toString());
+              localStorage.setItem('sim_holdings', JSON.stringify(holdings));
+              localStorage.setItem('sim_history', JSON.stringify(tradeHistory));
+              localStorage.setItem('sim_positions', JSON.stringify(positions));
+          }
+
+          function resetSimulation() {
+              localStorage.clear();
+              coins = DEFAULT_COINS;
+              startingCapital = 500.00;
+              usdtBalance = 500.00;
+              holdings = {};
+              tradeHistory = [];
+              positions = [];
+              chartLines = [];
+
+              Object.keys(coins).forEach(symbol => {
+                  coins[symbol].history = generateInitialHistory(coins[symbol].price);
+              });
+
+              saveState();
+              renderWatchlist();
+              updateHeaderStats();
+              renderHoldings();
+              renderHistory();
+              loadBoardContent();
+              selectCoin('BTC');
+              redrawChartLines();
+              playPopSound();
+              openBalanceModal();
+          }
+
+          function formatCurrency(val) {
+              if (val < 0.01) return '$' + val.toFixed(7);
+              return '$' + val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
+
+          function showToast(msg) {
+              const toast = document.createElement('div');
+              toast.className = "fixed bottom-5 right-5 glass-sheet border border-white/20 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold z-50 animate-bounce";
+              toast.innerText = msg;
+              document.body.appendChild(toast);
+              setTimeout(() => toast.remove(), 2800);
+          }
+      </script>
+  <!-- BACKGROUND MUSIC: фруктовый 2.0 (slowed & reverb) -->
+      <button id="music-toggle" onclick="toggleMusic()" class="fixed bottom-5 left-5 z-50 w-12 h-12 rounded-full glass-sheet border border-white/20 text-lg flex items-center justify-center hover:scale-110 transition-transform" title="Toggle background music">
+          🎧
+      </button>
+      <div id="music-player" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;"></div>
+      <!-- Local-only audio; place larppr.mp3 next to crypto.html -->
+
+  </body>
+  </html>
